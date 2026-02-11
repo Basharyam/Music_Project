@@ -1,0 +1,53 @@
+﻿<Window x:Class="Telhai.DotNet.PlayerProject.Tester"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Telhai.DotNet.PlayerProject"
+        mc:Ignorable="d"
+        MouseDoubleClick="Tester_MouseDoubleClick"
+        Title="Tester" Height="450" Width="800">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*" />
+            <ColumnDefinition Width="3*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- צד שמאל: עטיפת אלבום -->
+        <Border Grid.Column="0"
+                BorderThickness="1"
+                BorderBrush="Gray"
+                CornerRadius="8"
+                Padding="5">
+            <Image x:Name="AlbumImage"
+                   Stretch="Uniform"
+                   />
+        </Border>
+
+        <!-- צד ימין: מידע -->
+        <StackPanel Grid.Column="1"
+                    Margin="15"
+                    VerticalAlignment="Top">
+
+            <TextBlock Text="Track:"
+                       FontWeight="Bold"/>
+            <TextBlock x:Name="TrackNameText"
+                       FontSize="16"
+                       Margin="0,0,0,10"/>
+
+            <TextBlock Text="Artist:"
+                       FontWeight="Bold"/>
+            <TextBlock x:Name="ArtistNameText"
+                       Margin="0,0,0,10"/>
+
+            <TextBlock Text="Album:"
+                       FontWeight="Bold"/>
+            <TextBlock x:Name="AlbumNameText"
+                       Margin="0,0,0,20"/>
+
+            <TextBlock x:Name="StatusText"
+                       Foreground="Gray"
+                       FontStyle="Italic"/>
+        </StackPanel>
+    </Grid>
+</Window>
