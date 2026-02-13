@@ -8,4 +8,12 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="Assets\spotify.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\spotify.jpg" />
+  </ItemGroup>
+
 </Project>

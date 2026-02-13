@@ -1,26 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Telhai.DotNet.PlayerProject.Models;
 
 namespace Telhai.DotNet.PlayerProject.Services
 {
-    // service calling ituners search API
     public class ItunesService
     {
-
-        // init http client with prefix base domain
         private static readonly HttpClient _httpClient = new HttpClient
         {
             BaseAddress = new Uri("https://itunes.apple.com/")
         };
 
-
-        public async Task<ItunesTrackInfo?> SearchOneAsync(
-            string songTitle,
-            CancellationToken cancellationToken)
+        public async Task<ItunesTrackInfo?> SearchOneAsync(string songTitle, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(songTitle))
                 return null;
@@ -37,10 +32,7 @@ namespace Telhai.DotNet.PlayerProject.Services
 
             var data = JsonSerializer.Deserialize<ItunesSearchResponse>(
                 json,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             var item = data?.Results?.FirstOrDefault();
             if (item == null)

@@ -5,9 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Telhai.DotNet.PlayerProject"
         mc:Ignorable="d"
-        Title="Classroom Music Player" Height="450" Width="800"
-        Background="#222" Foreground="White" WindowStartupLocation="CenterScreen">
-
+        Title="Classroom Music Player"
+        Height="450"
+        Width="800"
+        Background="#222"
+        Foreground="White"
+        WindowStartupLocation="CenterScreen">
 
     <Grid Margin="15">
         <Grid.ColumnDefinitions>
@@ -15,26 +18,103 @@
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
 
+        <!-- LEFT SIDE -->
         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,20,0">
-            <TextBlock x:Name="txtStatus" Text="Ready" Foreground="#AAA" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="txtCurrentSong" Text="No Song Selected" FontSize="20" FontWeight="Bold" Margin="0,10,0,20" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="txtStatus"
+                       Text="Ready"
+                       Foreground="#AAA"
+                       HorizontalAlignment="Center"/>
 
-            <Slider x:Name="sliderProgress" IsMoveToPointEnabled="True" Margin="0,0,0,20"
+            <TextBlock x:Name="txtCurrentSong"
+                       Text="No Song Selected"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Margin="0,10,0,15"
+                       HorizontalAlignment="Center"/>
+
+            <!-- Metadata box -->
+            <Border Background="#2B2B2B" CornerRadius="10" Padding="10" Margin="0,0,0,15">
+                <StackPanel>
+
+                    <!-- COVER -->
+                    <Image x:Name="imgCover"
+                           Width="170"
+                           Height="170"
+                           Stretch="UniformToFill"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Track:" Foreground="#AAA"/>
+                    <TextBlock x:Name="txtTrackName"
+                               Text="-"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Artist:" Foreground="#AAA" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="txtArtistName"
+                               Text="-"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Album:" Foreground="#AAA" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="txtAlbumName"
+                               Text="-"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="File Path:" Foreground="#AAA" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="txtFilePath"
+                               Text="-"
+                               FontSize="12"
+                               Foreground="#DDD"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <Slider x:Name="sliderProgress"
+                    IsMoveToPointEnabled="True"
+                    Margin="0,0,0,20"
                     PreviewMouseLeftButtonDown="Slider_DragStarted"
                     PreviewMouseLeftButtonUp="Slider_DragCompleted"/>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="STOP" Click="BtnStop_Click" Width="80" Height="40" Margin="5"/>
-                <Button Content="PLAY" Click="BtnPlay_Click" Width="100" Height="40" Margin="5" FontWeight="Bold" Background="#007ACC" Foreground="White"/>
-                <Button Content="PAUSE" Click="BtnPause_Click" Width="80" Height="40" Margin="5"/>
+                <Button Content="STOP"
+                        Click="BtnStop_Click"
+                        Width="80"
+                        Height="40"
+                        Margin="5"/>
+
+                <Button Content="PLAY"
+                        Click="BtnPlay_Click"
+                        Width="100"
+                        Height="40"
+                        Margin="5"
+                        FontWeight="Bold"
+                        Background="#007ACC"
+                        Foreground="White"/>
+
+                <Button Content="PAUSE"
+                        Click="BtnPause_Click"
+                        Width="80"
+                        Height="40"
+                        Margin="5"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
                 <TextBlock Text="Volume " VerticalAlignment="Center"/>
-                <Slider x:Name="sliderVolume" Minimum="0" Maximum="1" Value="0.5" Width="150" ValueChanged="SliderVolume_ValueChanged"/>
+                <Slider x:Name="sliderVolume"
+                        Minimum="0"
+                        Maximum="1"
+                        Value="0.5"
+                        Width="150"
+                        ValueChanged="SliderVolume_ValueChanged"/>
             </StackPanel>
         </StackPanel>
 
+        <!-- RIGHT SIDE -->
         <Grid Grid.Column="1" Margin="10,0,0,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -42,13 +122,28 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Text="Library" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+            <TextBlock Text="Library"
+                       FontSize="16"
+                       FontWeight="Bold"
+                       Margin="0,0,0,10"/>
 
-            <ListBox x:Name="lstLibrary" Grid.Row="1" Background="#333" Foreground="White" MouseDoubleClick="LstLibrary_MouseDoubleClick"/>
+            <ListBox x:Name="lstLibrary"
+                     Grid.Row="1"
+                     Background="#333"
+                     Foreground="White"
+                     SelectionChanged="LstLibrary_SelectionChanged"
+                     MouseDoubleClick="LstLibrary_MouseDoubleClick"/>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
-                <Button Content="Add MP3" Click="BtnAdd_Click" Width="100" Margin="5"/>
-                <Button Content="Remove" Click="BtnRemove_Click" Width="100" Margin="5"/>
+                <Button Content="Add MP3"
+                        Click="BtnAdd_Click"
+                        Width="100"
+                        Margin="5"/>
+
+                <Button Content="Remove"
+                        Click="BtnRemove_Click"
+                        Width="100"
+                        Margin="5"/>
             </StackPanel>
         </Grid>
     </Grid>
