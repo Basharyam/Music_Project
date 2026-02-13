@@ -3,13 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Telhai.DotNet.PlayerProject"
         mc:Ignorable="d"
         Title="Classroom Music Player"
-        Height="450"
-        Width="800"
-        Background="#222"
-        Foreground="White"
+        Width="1000" Height="650"
+        MinWidth="950" MinHeight="600"
+        Background="#222" Foreground="White"
         WindowStartupLocation="CenterScreen">
 
     <Grid Margin="15">
@@ -18,101 +16,153 @@
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- LEFT SIDE -->
-        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,20,0">
-            <TextBlock x:Name="txtStatus"
-                       Text="Ready"
-                       Foreground="#AAA"
-                       HorizontalAlignment="Center"/>
+        <!-- LEFT SIDE (Scrollable so nothing gets hidden) -->
+        <ScrollViewer Grid.Column="0"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Margin="0,0,20,0">
 
-            <TextBlock x:Name="txtCurrentSong"
-                       Text="No Song Selected"
-                       FontSize="20"
-                       FontWeight="Bold"
-                       Margin="0,10,0,15"
-                       HorizontalAlignment="Center"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <!-- Status -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Current song -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Meta (cover + text) -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Progress -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Buttons -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Volume -->
+                </Grid.RowDefinitions>
 
-            <!-- Metadata box -->
-            <Border Background="#2B2B2B" CornerRadius="10" Padding="10" Margin="0,0,0,15">
-                <StackPanel>
+                <!-- Status -->
+                <TextBlock x:Name="txtStatus"
+                           Grid.Row="0"
+                           Text="Ready"
+                           Foreground="#AAA"
+                           HorizontalAlignment="Center"/>
 
-                    <!-- COVER -->
-                    <Image x:Name="imgCover"
-                           Width="170"
-                           Height="170"
-                           Stretch="UniformToFill"
+                <!-- Current song -->
+                <TextBlock x:Name="txtCurrentSong"
+                           Grid.Row="1"
+                           Text="No Song Selected"
+                           FontSize="22"
+                           FontWeight="Bold"
+                           Margin="0,10,0,15"
                            HorizontalAlignment="Center"
-                           Margin="0,0,0,10"/>
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"/>
 
-                    <TextBlock Text="Track:" Foreground="#AAA"/>
-                    <TextBlock x:Name="txtTrackName"
-                               Text="-"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap"/>
+                <!-- Metadata area -->
+                <Border Grid.Row="2"
+                        Background="#2B2B2B"
+                        CornerRadius="12"
+                        Padding="12"
+                        Margin="0,0,0,15">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Artist:" Foreground="#AAA" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="txtArtistName"
-                               Text="-"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap"/>
+                        <!-- Cover -->
+                        <Border Grid.Column="0"
+                                Background="#1F1F1F"
+                                CornerRadius="10"
+                                Padding="10"
+                                Margin="0,0,12,0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top">
+                            <Image x:Name="imgCover"
+                                   Width="180"
+                                   Height="180"
+                                   Stretch="UniformToFill"
+                                   SnapsToDevicePixels="True"/>
+                        </Border>
 
-                    <TextBlock Text="Album:" Foreground="#AAA" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="txtAlbumName"
-                               Text="-"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap"/>
+                        <!-- Text metadata -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Top">
+                            <TextBlock Text="Track:" Foreground="#AAA"/>
+                            <TextBlock x:Name="txtTrackName"
+                                       Text="-"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap"/>
 
-                    <TextBlock Text="File Path:" Foreground="#AAA" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="txtFilePath"
-                               Text="-"
-                               FontSize="12"
-                               Foreground="#DDD"
-                               TextWrapping="Wrap"/>
+                            <TextBlock Text="Artist:" Foreground="#AAA" Margin="0,10,0,0"/>
+                            <TextBlock x:Name="txtArtistName"
+                                       Text="-"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap"/>
+
+                            <TextBlock Text="Album:" Foreground="#AAA" Margin="0,10,0,0"/>
+                            <TextBlock x:Name="txtAlbumName"
+                                       Text="-"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap"/>
+
+                            <TextBlock Text="File Path:" Foreground="#AAA" Margin="0,10,0,0"/>
+                            <TextBlock x:Name="txtFilePath"
+                                       Text="-"
+                                       FontSize="12"
+                                       Foreground="#DDD"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Progress -->
+                <Slider x:Name="sliderProgress"
+                        Grid.Row="3"
+                        IsMoveToPointEnabled="True"
+                        Margin="0,0,0,18"
+                        PreviewMouseLeftButtonDown="Slider_DragStarted"
+                        PreviewMouseLeftButtonUp="Slider_DragCompleted"/>
+
+                <!-- Control buttons -->
+                <StackPanel Grid.Row="4"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,18">
+                    <Button Content="STOP"
+                            Click="BtnStop_Click"
+                            Width="110" Height="42"
+                            Margin="6"/>
+
+                    <Button Content="PLAY"
+                            Click="BtnPlay_Click"
+                            Width="140" Height="42"
+                            Margin="6"
+                            FontWeight="Bold"
+                            Background="#007ACC"
+                            Foreground="White"/>
+
+                    <Button Content="PAUSE"
+                            Click="BtnPause_Click"
+                            Width="110" Height="42"
+                            Margin="6"/>
                 </StackPanel>
-            </Border>
 
-            <Slider x:Name="sliderProgress"
-                    IsMoveToPointEnabled="True"
-                    Margin="0,0,0,20"
-                    PreviewMouseLeftButtonDown="Slider_DragStarted"
-                    PreviewMouseLeftButtonUp="Slider_DragCompleted"/>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="STOP"
-                        Click="BtnStop_Click"
-                        Width="80"
-                        Height="40"
-                        Margin="5"/>
-
-                <Button Content="PLAY"
-                        Click="BtnPlay_Click"
-                        Width="100"
-                        Height="40"
-                        Margin="5"
-                        FontWeight="Bold"
-                        Background="#007ACC"
-                        Foreground="White"/>
-
-                <Button Content="PAUSE"
-                        Click="BtnPause_Click"
-                        Width="80"
-                        Height="40"
-                        Margin="5"/>
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
-                <TextBlock Text="Volume " VerticalAlignment="Center"/>
-                <Slider x:Name="sliderVolume"
-                        Minimum="0"
-                        Maximum="1"
-                        Value="0.5"
-                        Width="150"
-                        ValueChanged="SliderVolume_ValueChanged"/>
-            </StackPanel>
-        </StackPanel>
+                <!-- Volume -->
+                <StackPanel Grid.Row="5"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,10">
+                    <TextBlock Text="Volume" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Slider x:Name="sliderVolume"
+                            Minimum="0"
+                            Maximum="1"
+                            Value="0.5"
+                            Width="220"
+                            ValueChanged="SliderVolume_ValueChanged"/>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
 
         <!-- RIGHT SIDE -->
         <Grid Grid.Column="1" Margin="10,0,0,0">
@@ -123,6 +173,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Text="Library"
+                       Grid.Row="0"
                        FontSize="16"
                        FontWeight="Bold"
                        Margin="0,0,0,10"/>
@@ -132,19 +183,26 @@
                      Background="#333"
                      Foreground="White"
                      SelectionChanged="LstLibrary_SelectionChanged"
-                     MouseDoubleClick="LstLibrary_MouseDoubleClick"/>
+                     MouseDoubleClick="LstLibrary_MouseDoubleClick"
+                     MinHeight="250"/>
 
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+            <UniformGrid Grid.Row="2"
+                         Rows="1"
+                         Columns="3"
+                         Margin="0,10,0,0">
                 <Button Content="Add MP3"
                         Click="BtnAdd_Click"
-                        Width="100"
-                        Margin="5"/>
-
+                        Margin="6"
+                        Height="36"/>
                 <Button Content="Remove"
                         Click="BtnRemove_Click"
-                        Width="100"
-                        Margin="5"/>
-            </StackPanel>
+                        Margin="6"
+                        Height="36"/>
+                <Button Content="Edit"
+                        Click="BtnEdit_Click"
+                        Margin="6"
+                        Height="36"/>
+            </UniformGrid>
         </Grid>
     </Grid>
 </Window>

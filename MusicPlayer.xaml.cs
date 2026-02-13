@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Telhai.DotNet.PlayerProject.Models;
 using Telhai.DotNet.PlayerProject.Services;
+using Telhai.DotNet.PlayerProject.ViewModels;
 
 namespace Telhai.DotNet.PlayerProject
 {
@@ -21,6 +22,7 @@ namespace Telhai.DotNet.PlayerProject
     {
         private readonly MediaPlayer mediaPlayer = new MediaPlayer();
         private readonly DispatcherTimer timer = new DispatcherTimer();
+
         private List<MusicTrack> library = new List<MusicTrack>();
         private bool isDragging = false;
 
@@ -30,8 +32,17 @@ namespace Telhai.DotNet.PlayerProject
         private readonly ItunesService _itunesService = new ItunesService();
         private CancellationTokenSource? _metadataCts;
 
-        // default cover (loaded safely after InitializeComponent)
+        // Song metadata cache store (songdata.json)
+        private readonly SongDataStore _songStore = new SongDataStore();
+
+        // Default cover (resource)
         private BitmapImage? _defaultCover;
+
+        // Slideshow timer for user images
+        private readonly DispatcherTimer _slideshowTimer = new DispatcherTimer();
+        private int _slideshowIndex = 0;
+        private List<string> _slideshowImages = new List<string>();
+        private CancellationTokenSource? _coverCts;
 
         public MusicPlayer()
         {
@@ -39,7 +50,7 @@ namespace Telhai.DotNet.PlayerProject
 
             // Load default cover safely (NO CRASH)
             _defaultCover = TryLoadResourceImage("pack://application:,,,/Assets/spotify.jpg");
-            imgCover.Source = _defaultCover; // can be null if not found
+            imgCover.Source = _defaultCover;
 
             // Initial volume
             mediaPlayer.Volume = sliderVolume.Value;
@@ -62,11 +73,16 @@ namespace Telhai.DotNet.PlayerProject
             {
                 timer.Stop();
                 sliderProgress.Value = 0;
+                StopSlideshow();
                 txtStatus.Text = "Ended";
             };
 
             timer.Interval = TimeSpan.FromMilliseconds(500);
             timer.Tick += Timer_Tick;
+
+            // Slideshow timer (every 3 seconds)
+            _slideshowTimer.Interval = TimeSpan.FromSeconds(3);
+            _slideshowTimer.Tick += SlideshowTimer_Tick;
 
             // Default UI state
             txtTrackName.Text = "-";
@@ -78,6 +94,9 @@ namespace Telhai.DotNet.PlayerProject
             LoadLibrary();
         }
 
+        // ------------------------------------
+        // Helpers
+        // ------------------------------------
         private BitmapImage? TryLoadResourceImage(string packUri)
         {
             try
@@ -92,14 +111,153 @@ namespace Telhai.DotNet.PlayerProject
             }
             catch
             {
-                // If BuildAction/Path is wrong => do not crash
                 return null;
             }
         }
 
-        // --------------------------
+        private bool HasAnyMetadata(SongData d)
+        {
+            return !string.IsNullOrWhiteSpace(d.CustomTitle)
+                || !string.IsNullOrWhiteSpace(d.TrackName)
+                || !string.IsNullOrWhiteSpace(d.ArtistName)
+                || !string.IsNullOrWhiteSpace(d.AlbumName)
+                || !string.IsNullOrWhiteSpace(d.ArtworkUrl);
+        }
+
+        private void ApplySongDataToUI(MusicTrack track, SongData data)
+        {
+            // title priority: CustomTitle -> TrackName -> local title
+            txtTrackName.Text =
+                !string.IsNullOrWhiteSpace(data.CustomTitle) ? data.CustomTitle :
+                !string.IsNullOrWhiteSpace(data.TrackName) ? data.TrackName :
+                track.Title;
+
+            txtArtistName.Text = string.IsNullOrWhiteSpace(data.ArtistName) ? "-" : data.ArtistName;
+            txtAlbumName.Text = string.IsNullOrWhiteSpace(data.AlbumName) ? "-" : data.AlbumName;
+
+            // local path always shown
+            txtFilePath.Text = track.FilePath;
+        }
+
+        private void StopSlideshow()
+        {
+            _slideshowTimer.Stop();
+            _slideshowImages = new List<string>();
+            _slideshowIndex = 0;
+        }
+
+        private void StartSlideshowIfAny(SongData data)
+        {
+            StopSlideshow();
+
+            if (data.UserImages == null || data.UserImages.Count == 0)
+                return;
+
+            // Keep only existing files
+            var list = new List<string>();
+            foreach (var p in data.UserImages)
+            {
+                if (!string.IsNullOrWhiteSpace(p) && File.Exists(p))
+                    list.Add(p);
+            }
+
+            if (list.Count == 0)
+                return;
+
+            _slideshowImages = list;
+            _slideshowIndex = 0;
+
+            // Show first image immediately
+            try
+            {
+                imgCover.Source = new BitmapImage(new Uri(_slideshowImages[_slideshowIndex], UriKind.Absolute));
+            }
+            catch
+            {
+                imgCover.Source = _defaultCover;
+            }
+
+            _slideshowTimer.Start();
+        }
+
+        private void SlideshowTimer_Tick(object? sender, EventArgs e)
+        {
+            if (_slideshowImages.Count == 0)
+            {
+                _slideshowTimer.Stop();
+                return;
+            }
+
+            _slideshowIndex = (_slideshowIndex + 1) % _slideshowImages.Count;
+
+            try
+            {
+                imgCover.Source = new BitmapImage(new Uri(_slideshowImages[_slideshowIndex], UriKind.Absolute));
+            }
+            catch
+            {
+                imgCover.Source = _defaultCover;
+            }
+        }
+
+        private async Task ShowCoverFromSongDataAsync(SongData data, CancellationToken token)
+        {
+            // If user images exist -> slideshow (requirements 3.2)
+            if (data.UserImages != null && data.UserImages.Count > 0)
+            {
+                StartSlideshowIfAny(data);
+                return;
+            }
+
+            // Otherwise show saved API cover (requirements 3.1)
+            StopSlideshow();
+
+            if (!string.IsNullOrWhiteSpace(data.ArtworkUrl))
+            {
+                var bmp = await LoadImageFromUrlAsync(data.ArtworkUrl, token);
+                if (!token.IsCancellationRequested && bmp != null)
+                {
+                    imgCover.Source = bmp;
+                    return;
+                }
+            }
+
+            imgCover.Source = _defaultCover;
+        }
+
+        private string BuildSearchTerm(MusicTrack track)
+        {
+            string name = Path.GetFileNameWithoutExtension(track.FilePath);
+            name = name.Replace("-", " ").Replace("_", " ");
+            name = Regex.Replace(name, @"\[(.*?)\]", " ");
+            name = Regex.Replace(name, @"\((.*?)\)", " ");
+            name = Regex.Replace(name, @"\s+", " ").Trim();
+            return name;
+        }
+
+        private Task<BitmapImage?> LoadImageFromUrlAsync(string url, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+
+            try
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = new Uri(url, UriKind.Absolute);
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                bmp.EndInit();
+                return Task.FromResult<BitmapImage?>(bmp);
+            }
+            catch
+            {
+                return Task.FromResult<BitmapImage?>(null);
+            }
+        }
+
+        // ------------------------------------
         // UI BUTTONS
-        // --------------------------
+        // ------------------------------------
         private void BtnPlay_Click(object sender, RoutedEventArgs e)
         {
             if (lstLibrary.SelectedItem is MusicTrack)
@@ -132,6 +290,7 @@ namespace Telhai.DotNet.PlayerProject
             mediaPlayer.Stop();
             timer.Stop();
             sliderProgress.Value = 0;
+            StopSlideshow();
             txtStatus.Text = "Stopped";
         }
 
@@ -140,9 +299,35 @@ namespace Telhai.DotNet.PlayerProject
             mediaPlayer.Volume = sliderVolume.Value;
         }
 
-        // --------------------------
+        // EDIT WINDOW (3.2) - no API here
+        private void BtnEdit_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstLibrary.SelectedItem is not MusicTrack track)
+            {
+                MessageBox.Show("Select a song first.", "Edit Song", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var vm = new SongEditorViewModel(_songStore, track);
+            var win = new SongEditorWindow(vm)
+            {
+                Owner = this
+            };
+            win.ShowDialog();
+
+            // Refresh current selection UI from cache (no API)
+            var cached = _songStore.GetByFilePath(track.FilePath);
+            if (cached != null)
+            {
+                ApplySongDataToUI(track, cached);
+                _ = ShowCoverFromSongDataAsync(cached, CancellationToken.None);
+                txtStatus.Text = "Updated from editor (cache)";
+            }
+        }
+
+        // ------------------------------------
         // LIBRARY MANAGEMENT
-        // --------------------------
+        // ------------------------------------
         private void BtnAdd_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog
@@ -155,12 +340,11 @@ namespace Telhai.DotNet.PlayerProject
             {
                 foreach (string file in ofd.FileNames)
                 {
-                    MusicTrack track = new MusicTrack
+                    library.Add(new MusicTrack
                     {
                         Title = Path.GetFileNameWithoutExtension(file),
                         FilePath = file
-                    };
-                    library.Add(track);
+                    });
                 }
 
                 UpdateLibraryUI();
@@ -178,29 +362,50 @@ namespace Telhai.DotNet.PlayerProject
             }
         }
 
-        // Single click: show name + path + default cover (no playback)
-        private void LstLibrary_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // ------------------------------------
+        // LIST EVENTS (Single click shows info)
+        // ------------------------------------
+        private async void LstLibrary_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (lstLibrary.SelectedItem is MusicTrack track)
+            if (lstLibrary.SelectedItem is not MusicTrack track)
+                return;
+
+            txtCurrentSong.Text = track.Title;
+            txtFilePath.Text = track.FilePath;
+
+            // Cancel any pending cover download / slideshow start
+            _coverCts?.Cancel();
+            _coverCts = new CancellationTokenSource();
+            var token = _coverCts.Token;
+
+            // If already saved => show without API
+            var cached = _songStore.GetByFilePath(track.FilePath);
+            if (cached != null && HasAnyMetadata(cached))
             {
-                txtCurrentSong.Text = track.Title;
-                txtFilePath.Text = track.FilePath;
-
-                imgCover.Source = _defaultCover;
-
-                txtTrackName.Text = track.Title;
-                txtArtistName.Text = "-";
-                txtAlbumName.Text = "-";
-                txtStatus.Text = "Selected";
+                ApplySongDataToUI(track, cached);
+                await ShowCoverFromSongDataAsync(cached, token);
+                txtStatus.Text = "Selected (cache)";
+                return;
             }
+
+            // No cache => show basic local info
+            StopSlideshow();
+            imgCover.Source = _defaultCover;
+            txtTrackName.Text = track.Title;
+            txtArtistName.Text = "-";
+            txtAlbumName.Text = "-";
+            txtStatus.Text = "Selected";
         }
 
-        // Double click: play + metadata
+        // double click: play
         private void LstLibrary_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             PlaySelectedTrack();
         }
 
+        // ------------------------------------
+        // PLAY + METADATA (Cache first, cancel previous)
+        // ------------------------------------
         private void PlaySelectedTrack()
         {
             if (lstLibrary.SelectedItem is not MusicTrack track)
@@ -212,6 +417,14 @@ namespace Telhai.DotNet.PlayerProject
             if (!File.Exists(track.FilePath))
             {
                 txtStatus.Text = "File not found: " + track.FilePath;
+
+                txtTrackName.Text = Path.GetFileNameWithoutExtension(track.FilePath);
+                txtArtistName.Text = "-";
+                txtAlbumName.Text = "-";
+                txtFilePath.Text = track.FilePath;
+                imgCover.Source = _defaultCover;
+
+                SaveBasicSongData(track);
                 return;
             }
 
@@ -220,119 +433,126 @@ namespace Telhai.DotNet.PlayerProject
             _metadataCts = new CancellationTokenSource();
             var token = _metadataCts.Token;
 
-            // Clean start
-            mediaPlayer.Stop();
-
-            // show default immediately
-            imgCover.Source = _defaultCover;
+            // Cancel cover CTS too
+            _coverCts?.Cancel();
+            _coverCts = new CancellationTokenSource();
 
             // Play immediately
+            mediaPlayer.Stop();
             mediaPlayer.Volume = sliderVolume.Value;
             mediaPlayer.Open(new Uri(track.FilePath, UriKind.Absolute));
             mediaPlayer.Play();
             timer.Start();
 
-            // Base UI update
+            // Update base UI
             txtCurrentSong.Text = track.Title;
             txtFilePath.Text = track.FilePath;
+
+            // Cache exists => no API call
+            var cached = _songStore.GetByFilePath(track.FilePath);
+            if (cached != null && HasAnyMetadata(cached))
+            {
+                ApplySongDataToUI(track, cached);
+                _ = ShowCoverFromSongDataAsync(cached, token);
+                txtStatus.Text = "Playing (cache)";
+                return;
+            }
+
+            // No cache => show default until API
+            StopSlideshow();
+            imgCover.Source = _defaultCover;
             txtTrackName.Text = track.Title;
             txtArtistName.Text = "-";
             txtAlbumName.Text = "-";
             txtStatus.Text = "Playing + searching iTunes...";
 
-            _ = LoadMetadataAsync(track, token);
+            _ = LoadMetadataFromApiAndCacheAsync(track, token);
         }
 
-        private async Task LoadMetadataAsync(MusicTrack track, CancellationToken token)
+        private void SaveBasicSongData(MusicTrack track)
+        {
+            var basic = _songStore.GetByFilePath(track.FilePath) ?? new SongData { FilePath = track.FilePath };
+            basic.TrackName = Path.GetFileNameWithoutExtension(track.FilePath);
+            basic.ArtistName = null;
+            basic.AlbumName = null;
+            basic.ArtworkUrl = null;
+
+            _songStore.Upsert(basic);
+        }
+
+        private async Task LoadMetadataFromApiAndCacheAsync(MusicTrack track, CancellationToken token)
         {
             try
             {
                 string term = BuildSearchTerm(track);
-
                 ItunesTrackInfo? info = await _itunesService.SearchOneAsync(term, token);
 
                 if (token.IsCancellationRequested) return;
 
                 if (info == null)
                 {
-                    txtStatus.Text = "No iTunes results. Showing file info only.";
-                    txtTrackName.Text = Path.GetFileNameWithoutExtension(track.FilePath);
+                    txtStatus.Text = "No iTunes results. Showing file info only (saved).";
+
+                    var basic = _songStore.GetByFilePath(track.FilePath) ?? new SongData { FilePath = track.FilePath };
+                    basic.TrackName = Path.GetFileNameWithoutExtension(track.FilePath);
+                    basic.ArtistName = null;
+                    basic.AlbumName = null;
+                    basic.ArtworkUrl = null;
+
+                    _songStore.Upsert(basic);
+
+                    txtTrackName.Text = basic.TrackName;
                     txtArtistName.Text = "-";
                     txtAlbumName.Text = "-";
+                    StopSlideshow();
                     imgCover.Source = _defaultCover;
+
                     return;
                 }
 
-                txtTrackName.Text = string.IsNullOrWhiteSpace(info.TrackName) ? track.Title : info.TrackName;
-                txtArtistName.Text = string.IsNullOrWhiteSpace(info.ArtistName) ? "-" : info.ArtistName;
-                txtAlbumName.Text = string.IsNullOrWhiteSpace(info.AlbumName) ? "-" : info.AlbumName;
+                var existing = _songStore.GetByFilePath(track.FilePath) ?? new SongData { FilePath = track.FilePath };
 
-                // cover
-                if (!string.IsNullOrWhiteSpace(info.ArtworkUrl))
-                {
-                    var bmp = await LoadImageFromUrlAsync(info.ArtworkUrl, token);
-                    if (!token.IsCancellationRequested && bmp != null)
-                        imgCover.Source = bmp;
-                    else
-                        imgCover.Source = _defaultCover;
-                }
-                else
-                {
-                    imgCover.Source = _defaultCover;
-                }
+                existing.TrackName = info.TrackName;
+                existing.ArtistName = info.ArtistName;
+                existing.AlbumName = info.AlbumName;
+                existing.ArtworkUrl = info.ArtworkUrl;
+                existing.LastUpdatedUtc = DateTime.UtcNow;
 
+                _songStore.Upsert(existing);
+
+                ApplySongDataToUI(track, existing);
+                await ShowCoverFromSongDataAsync(existing, token);
 
                 if (!txtStatus.Text.StartsWith("Media opened"))
-                    txtStatus.Text = "Playing";
+                    txtStatus.Text = "Playing (API saved)";
             }
             catch (OperationCanceledException)
             {
                 // expected when changing songs
             }
-            catch (Exception ex)
+            catch
             {
-                txtStatus.Text = "iTunes error: " + ex.Message + " | Showing file info only.";
-                txtTrackName.Text = Path.GetFileNameWithoutExtension(track.FilePath);
+                txtStatus.Text = "iTunes error. Showing file info only (saved).";
+
+                var basic = _songStore.GetByFilePath(track.FilePath) ?? new SongData { FilePath = track.FilePath };
+                basic.TrackName = Path.GetFileNameWithoutExtension(track.FilePath);
+                basic.ArtistName = null;
+                basic.AlbumName = null;
+                basic.ArtworkUrl = null;
+
+                _songStore.Upsert(basic);
+
+                txtTrackName.Text = basic.TrackName;
                 txtArtistName.Text = "-";
                 txtAlbumName.Text = "-";
+                StopSlideshow();
                 imgCover.Source = _defaultCover;
             }
         }
 
-        private string BuildSearchTerm(MusicTrack track)
-        {
-            string name = Path.GetFileNameWithoutExtension(track.FilePath);
-
-            name = name.Replace("-", " ").Replace("_", " ");
-            name = Regex.Replace(name, @"\[(.*?)\]", " ");
-            name = Regex.Replace(name, @"\((.*?)\)", " ");
-            name = Regex.Replace(name, @"\s+", " ").Trim();
-
-            return name;
-        }
-
-        private Task<BitmapImage?> LoadImageFromUrlAsync(string url, CancellationToken token)
-        {
-            // must run on UI thread; this method is awaited from UI context
-            token.ThrowIfCancellationRequested();
-
-            try
-            {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.UriSource = new Uri(url, UriKind.Absolute);
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                bmp.EndInit();
-                return Task.FromResult<BitmapImage?>(bmp);
-            }
-            catch
-            {
-                return Task.FromResult<BitmapImage?>(null);
-            }
-        }
-
-
+        // ------------------------------------
+        // TIMER + SLIDER
+        // ------------------------------------
         private void Timer_Tick(object? sender, EventArgs e)
         {
             if (mediaPlayer.Source != null && mediaPlayer.NaturalDuration.HasTimeSpan && !isDragging)
@@ -350,6 +570,9 @@ namespace Telhai.DotNet.PlayerProject
             mediaPlayer.Position = TimeSpan.FromSeconds(sliderProgress.Value);
         }
 
+        // ------------------------------------
+        // SAVE / LOAD LIBRARY
+        // ------------------------------------
         private void UpdateLibraryUI()
         {
             lstLibrary.ItemsSource = null;
@@ -375,6 +598,8 @@ namespace Telhai.DotNet.PlayerProject
         protected override void OnClosed(EventArgs e)
         {
             _metadataCts?.Cancel();
+            _coverCts?.Cancel();
+            StopSlideshow();
             base.OnClosed(e);
         }
     }
